@@ -1,0 +1,169 @@
+#!/bin/bash
+
+# Set current directory to where file was executed from
+cd $(dirname "$0")
+
+# Path to node binaries
+binary="lib/binary"
+package="lib/node"
+
+# Get config variables
+if [ -f settings.txt ]; then
+	source settings.txt
+fi
+
+
+
+# Get OS name
+os=$(uname | tr A-Z a-z)
+case $os in
+	windowsnt )
+		os=win
+		;;
+esac
+
+# Get architecture
+arc=$(uname -m)
+case $arc in
+	x86_64 )
+		arc=x64
+		;;
+esac
+
+
+
+# Handle options
+abort=$@
+while [ $# -gt 0 ]; do
+	opt=$1
+	arg=
+	if [[ $2 != -* ]] && [ $# -gt 1 ]; then
+		arg=$2
+		shift
+	fi
+	case $opt in
+		# Specify version of Node
+		-v | -version )
+			version="$arg"
+			verSource="argument"
+			abort=
+			;;
+		# Display OS, architecture and available versions info
+		-i | -info )
+			echo "OS=$os"
+			echo "Architecture=$arc"
+			for f in "$binary"/node-v*-$os-$arc; do
+				echo $f | sed "s/.*-v//;s/-.*//"
+			done
+			exit
+			;;
+		# Download binary for this os/arc and specified version if it does not exist
+		-d | -download )
+			version="$arg"
+			verSource="argument"
+			echo "Downloading binaries if needed"
+			;;
+		# Display help
+		-h | -help )
+			echo "There is no help"
+			;;
+		# Handle invalid options
+		* )
+			echo "Invalid Option: $opt"
+			exit 1
+			;;
+	esac
+	shift
+done
+
+
+
+# Create directory for node package
+if [ ! -d "$package" ]; then
+	mkdir -p "$package"
+	echo "Unable to start without Node package"
+	exit
+fi
+
+
+
+# Set version of Node to use if undefined
+if [ -z $version ]; then
+	# Get latest downloaded version
+	shopt -s nullglob
+	version=$(for f in "$binary"/node-v*-$os-$arc; do :; done; echo $f | sed "s/.*-v//;s/-.*//")
+	verSource="auto"
+
+	# Download latest lts binary for os/architecture if no binary exist
+	if [ -z $version ]; then
+		version=$(curl -s https://nodejs.org/dist/index.json | grep -v "lts\":false" | sed "s/.*version\":\"v//;s/\",.*//" | head -2 | tail -1)
+	fi
+fi
+
+
+
+# Create path to binary executable
+path="$binary"/node-v$version-$os-$arc/$([ $os == win ] && echo node.exe || echo bin/node)
+
+# Download binary if it does not exist for version/os/architecture
+if [ ! -f "$path" ]; then
+	# Create binaries directory if it does not exits
+	if [ ! -d "$binary" ]; then
+		mkdir -p "$binary"
+	fi
+
+	# Download binary and extract to binaries folder
+	curl -s https://nodejs.org/dist/v$version/node-v$version-$os-$arc.$([ $os == win ] && echo zip || echo tar.gz) | tar xvz -C "$binary"
+	echo "Downloaded binaries for Node v$version on $os $arc"
+fi
+
+
+
+# Abort
+if [ -n "${abort}" ]; then
+	exit
+fi
+
+# Display debug info
+echo "OS=$os"
+echo "Architecture=$arc"
+echo "Version=$version"
+echo "Version from: ${verSource:-file}"
+echo "Path to Node binary: $path"
+echo "Passing over to Node..."
+clear
+
+
+
+# Run entry file from package with Nodes binary
+$path -e "
+	'use strict';
+	let path;
+	try {
+		path = require.resolve('./$package')
+	} catch (err) {
+		console.error(err.message.slice(0, err.message.indexOf('\n')));
+		process.exit(1);
+	}
+	const vm = require('vm');
+	const context = vm.runInNewContext(require('fs').readFileSync(path) + ';(${context:=undefined});', global, { filename: path });
+	const replModule = require('repl');
+	replModule.REPLServer.prototype.createContext = function () {
+		return (typeof context === 'object') ? vm.createContext(context) : global;
+	};
+	const repl = replModule.start();
+	delete repl.output._events.resize;
+	repl.output.write = function (output) {
+		this.constructor.prototype.write.call(this,
+			'\x1b[' + (repl._prompt.length + repl.line.length) + 'D\x1b[0J'
+			+ output + repl._prompt + repl.line
+			+ ((repl.cursor < repl.line.length) ? '\x1b[' + (repl.line.length - repl.cursor) + 'D' : '')
+		);
+	};
+	repl.output = {write: repl.output.constructor.prototype.write.bind(repl.output)};
+"
+
+
+
+# TODO:
+# ISSUE. When starting a node instance with "-e", all builtin modules are loaded into "global". They are not loaded in when loading a normal file or streaming in from a string (node <<< string) but this overwrites normal stdin
