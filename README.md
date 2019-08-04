@@ -1,4 +1,13 @@
 # Portable-Interactive-Node-Environment (PINE)
+		    /\
+		   /  \
+		   /  \
+		  /    \
+		  /    \
+		 /      \
+		 /      \
+		/________\
+		    ||
 
 This is a script that runs a node-script-file as well as downloads and manages portable versions of Node.js to run the node-script-file with. Nothing is installed on the local computer, everything is contained inside a "lib" folder created in the same directory next to the script.
 
