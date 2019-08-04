@@ -3,11 +3,11 @@
 # Set current directory to where file was executed from
 cd $(dirname "$0")
 
-# Path to node binaries
+# Path to directories
 binary="lib/binary"
 package="lib/node"
 
-# Get config variables
+# Get settings file
 if [ -f settings.txt ]; then
 	source settings.txt
 fi
@@ -57,7 +57,7 @@ while [ $# -gt 0 ]; do
 			done
 			exit
 			;;
-		# Download binary for this os/arc and specified version if it does not exist
+		# Download binary for this os/arc and possibly specified version if it does not exist
 		-d | -download )
 			version="$arg"
 			verSource="argument"
@@ -94,7 +94,7 @@ if [ -z $version ]; then
 	version=$(for f in "$binary"/node-v*-$os-$arc; do :; done; echo $f | sed "s/.*-v//;s/-.*//")
 	verSource="auto"
 
-	# Download latest lts binary for os/architecture if no binary exist
+	# Get latest lts version if no binary exist
 	if [ -z $version ]; then
 		version=$(curl -s https://nodejs.org/dist/index.json | grep -v "lts\":false" | sed "s/.*version\":\"v//;s/\",.*//" | head -2 | tail -1)
 	fi
