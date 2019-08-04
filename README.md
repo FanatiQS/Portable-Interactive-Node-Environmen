@@ -2,10 +2,10 @@
 
 This is a script that runs a node-script-file as well as downloads and manages portable versions of Node.js to run the node-script-file with. Nothing is installed on the local computer, everything is contained inside a "lib" folder created in the same directory next to the script.
 
-How the portable Node.js part works:
+## How the portable Node.js part works:
 The script downloads the binaries for the Node.js version specified or for the latest stable version if not specified, based on your OS and architecture, then runs the node-script-file with the executable from that downloaded binary.
 
-## Manually downloading Node.js binaries:
+### Manually downloading Node.js binaries:
 Go to "https://nodejs.org/en/download/" and download the "binary" version for your computer (not an installer). Then unpack it into the "lib/binary" folder and keep the name intact. If the folder path doesn't exist, you can just create it. The script should now be able to find that Node.js binary and use it. If it doesn't, check what OS and architecture the script detects with the command line option "-i" and if something is not detected properly, please get in contact with me and we'll figure it out.
 
 ## Adding the node-script-file:
